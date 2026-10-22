@@ -63,6 +63,10 @@ public:
 	idx_t UncompressedBytesRead() const {
 		return uncompressed_bytes_read.load(std::memory_order_relaxed);
 	}
+	//! The number of bytes of the stored file that have been read - for a compressed file, its compressed bytes
+	idx_t StoredBytesRead() const {
+		return stored_bytes_read.load(std::memory_order_relaxed);
+	}
 
 private:
 	QueryContext context;
@@ -73,6 +77,9 @@ private:
 	bool on_disk_file = false;
 	bool is_pipe = false;
 	atomic<idx_t> uncompressed_bytes_read {0};
+	atomic<idx_t> stored_bytes_read {0};
+	//! For a compressed file, the compressed bytes counted in stored_bytes_read since the file was (re)opened
+	idx_t compressed_bytes_counted = 0;
 
 	idx_t file_size = 0;
 

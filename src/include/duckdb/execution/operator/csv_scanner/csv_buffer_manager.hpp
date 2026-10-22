@@ -66,6 +66,10 @@ public:
 
 	string GetFilePath() const;
 
+	//! Returns the stored size of the buffer the first time a scan claims it, and 0 after that - a buffer is counted
+	//! as scanned once, however many scanners read from it
+	idx_t ClaimBytesScanned(const CSVBufferHandle &buffer);
+
 	bool IsBlockUnloaded(idx_t block_idx);
 
 	ClientContext &context;
@@ -81,6 +85,13 @@ protected:
 	idx_t buffer_size;
 	//! Because the buffer manager can be accessed in Parallel we need a mutex.
 	mutex main_mutex;
+	//! Starts counting the buffers scanned anew, for a rescan of the file
+	void ResetBytesScanned();
+
+private:
+	mutex bytes_scanned_lock;
+	//! The buffers whose bytes have been counted as scanned
+	vector<bool> buffers_scanned;
 };
 
 } // namespace duckdb

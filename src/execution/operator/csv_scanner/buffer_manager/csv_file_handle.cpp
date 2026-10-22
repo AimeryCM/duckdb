@@ -61,6 +61,7 @@ bool CSVFileHandle::OnDiskFile() const {
 
 void CSVFileHandle::Reset() {
 	file_handle->Reset();
+	compressed_bytes_counted = 0;
 	encoder.Reset();
 	finished = false;
 	requested_bytes = 0;
@@ -93,6 +94,11 @@ idx_t CSVFileHandle::Read(void *buffer, idx_t nr_bytes) {
 	}
 
 	requested_bytes += nr_bytes;
+	// the bytes of the stored file this read consumes: the compressed bytes of a compressed file, and for an encoding
+	// other than utf-8 the bytes before decoding
+	const bool compressed = file_handle->GetFileCompressionType() != FileCompressionType::UNCOMPRESSED;
+	const bool decoded = encoder.encoding_name != "utf-8";
+	const idx_t stored_before = decoded && can_seek ? file_handle->SeekPosition() : 0;
 	// if this is a plain file source OR we can seek we are not caching anything
 	idx_t bytes_read = 0;
 	if (encoder.encoding_name == "utf-8") {
@@ -100,6 +106,17 @@ idx_t CSVFileHandle::Read(void *buffer, idx_t nr_bytes) {
 	} else {
 		bytes_read = encoder.Encode(*file_handle, static_cast<char *>(buffer), nr_bytes);
 	}
+	idx_t stored_read = bytes_read;
+	if (compressed) {
+		// measured from what was counted before rather than from before this read, so the bytes consumed when the
+		// file was opened (e.g. a gzip header) count towards the first read
+		const auto stored_position = file_handle->GetProgress();
+		stored_read = stored_position - compressed_bytes_counted;
+		compressed_bytes_counted = stored_position;
+	} else if (decoded && can_seek) {
+		stored_read = file_handle->SeekPosition() - stored_before;
+	}
+	stored_bytes_read.fetch_add(stored_read, std::memory_order_relaxed);
 	if (!finished) {
 		finished = bytes_read == 0;
 	}
@@ -111,6 +128,7 @@ void CSVFileHandle::ReadAt(void *buffer, idx_t nr_bytes, idx_t position) {
 	D_ASSERT(HasKnownBufferRanges());
 	D_ASSERT(position + nr_bytes <= file_size);
 	file_handle->Read(context, buffer, nr_bytes, position);
+	stored_bytes_read.fetch_add(nr_bytes, std::memory_order_relaxed);
 }
 
 string CSVFileHandle::ReadLine() {

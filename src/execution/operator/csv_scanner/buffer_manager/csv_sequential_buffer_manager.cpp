@@ -131,6 +131,7 @@ bool CSVSequentialBufferManager::Done() const {
 }
 
 void CSVSequentialBufferManager::ResetBufferManager() {
+	ResetBytesScanned();
 	if (!file_handle->IsPipe()) {
 		// If this is not a pipe we reset the buffer manager and restart it when doing the actual scan
 		cached_buffers.clear();

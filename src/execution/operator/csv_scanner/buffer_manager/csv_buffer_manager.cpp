@@ -61,6 +61,23 @@ string CSVBufferManager::GetFilePath() const {
 	return file.path;
 }
 
+idx_t CSVBufferManager::ClaimBytesScanned(const CSVBufferHandle &buffer) {
+	lock_guard<mutex> guard(bytes_scanned_lock);
+	if (buffer.buffer_idx >= buffers_scanned.size()) {
+		buffers_scanned.resize(buffer.buffer_idx + 1, false);
+	}
+	if (buffers_scanned[buffer.buffer_idx]) {
+		return 0;
+	}
+	buffers_scanned[buffer.buffer_idx] = true;
+	return buffer.stored_size;
+}
+
+void CSVBufferManager::ResetBytesScanned() {
+	lock_guard<mutex> guard(bytes_scanned_lock);
+	buffers_scanned.clear();
+}
+
 bool CSVBufferManager::IsBlockUnloaded(idx_t block_idx) {
 	if (block_idx < cached_buffers.size()) {
 		return cached_buffers[block_idx]->IsUnloaded();

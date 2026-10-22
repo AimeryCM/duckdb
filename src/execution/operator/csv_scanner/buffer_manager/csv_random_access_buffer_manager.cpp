@@ -68,6 +68,7 @@ bool CSVRandomAccessBufferManager::Done() const {
 }
 
 void CSVRandomAccessBufferManager::ResetBufferManager() {
+	ResetBytesScanned();
 	cached_buffers.clear();
 	Initialize();
 }

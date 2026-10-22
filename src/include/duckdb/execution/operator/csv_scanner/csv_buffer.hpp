@@ -20,10 +20,10 @@ namespace duckdb {
 class CSVBufferHandle {
 public:
 	CSVBufferHandle(BufferHandle handle_p, idx_t actual_size_p, idx_t requested_size_p, const bool is_final_buffer_p,
-	                idx_t buffer_index_p)
+	                idx_t buffer_index_p, idx_t stored_size_p)
 	    : handle(std::move(handle_p)), actual_size(actual_size_p), requested_size(requested_size_p),
-	      is_last_buffer(is_final_buffer_p), buffer_idx(buffer_index_p) {};
-	CSVBufferHandle() : actual_size(0), requested_size(0), is_last_buffer(false), buffer_idx(0) {};
+	      is_last_buffer(is_final_buffer_p), buffer_idx(buffer_index_p), stored_size(stored_size_p) {};
+	CSVBufferHandle() : actual_size(0), requested_size(0), is_last_buffer(false), buffer_idx(0), stored_size(0) {};
 	~CSVBufferHandle() {
 	}
 	//! Handle created during allocation
@@ -32,6 +32,8 @@ public:
 	const idx_t requested_size;
 	const bool is_last_buffer;
 	const idx_t buffer_idx;
+	//! The bytes of the stored file the buffer was read from - for a compressed file, its compressed bytes
+	const idx_t stored_size;
 	inline const char *Ptr() const {
 		return const_char_ptr_cast(handle.Ptr());
 	}
@@ -108,6 +110,8 @@ private:
 	//! Actual size can be smaller than the buffer size in case we allocate it too optimistically.
 	idx_t actual_buffer_size;
 	idx_t requested_size;
+	//! The bytes of the stored file the buffer was read from
+	idx_t stored_size = 0;
 	//! Global position from the CSV File where this buffer starts
 	idx_t global_csv_start = 0;
 	//! If this file is being fed by a pipe.

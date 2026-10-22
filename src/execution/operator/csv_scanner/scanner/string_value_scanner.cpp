@@ -1,6 +1,7 @@
 #include "duckdb/execution/operator/csv_scanner/string_value_scanner.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
+#include "duckdb/main/query_profiler.hpp"
 
 #include "duckdb/common/exception/conversion_exception.hpp"
 #include "duckdb/common/operator/decimal_cast_operators.hpp"
@@ -1044,6 +1045,9 @@ StringValueScanner::StringValueScanner(idx_t scanner_idx_p, const shared_ptr<CSV
 	}
 	iterator.buffer_size = state_machine->options.buffer_size_option.GetValue();
 	result.try_row = scanner_idx == LINE_FINDER_ID;
+	if (cur_buffer_handle) {
+		CountBytesScanned(*cur_buffer_handle);
+	}
 }
 
 StringValueScanner::StringValueScanner(const shared_ptr<CSVBufferManager> &buffer_manager,
@@ -1724,7 +1728,20 @@ StringValueScanner::MoveBufferResult StringValueScanner::TryMoveToNextBuffer() {
 	return MoveBufferResult::NOT_MOVED;
 }
 
+void StringValueScanner::CountBytesScanned(const CSVBufferHandle &buffer) {
+	if (sniffing || !csv_file_scan || scanner_idx == LINE_FINDER_ID) {
+		return;
+	}
+	auto bytes = buffer_manager->ClaimBytesScanned(buffer);
+	if (bytes == 0) {
+		return;
+	}
+	csv_file_scan->bytes_scanned_unreported += bytes;
+	QueryProfiler::Get(buffer_manager->context).TrackBytesScanned(bytes);
+}
+
 void StringValueScanner::FinishMoveToNextBuffer(shared_ptr<CSVBufferHandle> next_buffer) {
+	CountBytesScanned(*next_buffer);
 	previous_buffer_handle = std::move(cur_buffer_handle);
 	cur_buffer_handle = std::move(next_buffer);
 	iterator.pos.buffer_idx++;

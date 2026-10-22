@@ -391,6 +391,8 @@ private:
 	MoveBufferResult TryMoveToNextBuffer();
 	//! Move to the next buffer and processes the value straddling the buffer edge
 	void FinishMoveToNextBuffer(shared_ptr<CSVBufferHandle> next_buffer);
+	//! Counts the bytes of a buffer as scanned, the first time any scanner of the file reads from it
+	void CountBytesScanned(const CSVBufferHandle &buffer);
 	//! Tail of the boundary chunk finalization, runs after the move past the boundary end
 	void FinishBoundaryScan(bool moved);
 	//! Processes buffers until the chunk is full or the file ends
