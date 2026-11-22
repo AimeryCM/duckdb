@@ -261,3 +261,25 @@ SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE filename LIKE '
 FROM '{TEST_DIR}/bytes_scanned_csv_latin1.json';
 ----
 true
+
+# a scan that reads no storage keeps the total of the CSV scan
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_csv_join_range.json';
+
+statement ok
+SELECT sum(c.i) FROM read_csv('{TEST_DIR}/bytes_scanned_1.csv') c JOIN range(10) r ON c.i = r.range;
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE filename LIKE '%bytes_scanned_1.csv')
+FROM '{TEST_DIR}/bytes_scanned_csv_join_range.json';
+----
+true

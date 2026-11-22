@@ -60,6 +60,11 @@ struct SystemCatalogIdentityColumns {
 	const char *entry_oid = nullptr;
 };
 
+//! Global state of a system table function that reports its counters through SystemCatalogScanner::GetMetrics
+struct SystemCatalogScannerGlobalState : public GlobalTableFunctionState {
+	SystemCatalogScannerStats stats;
+};
+
 class SystemCatalogScanner {
 public:
 	//! Bind helper: locate the identity columns by name in `names`. Always returns non-null bind data.
@@ -84,8 +89,10 @@ public:
 	                                                  CatalogType type, SystemCatalogScannerStats &stats);
 	//! get_metrics helper: writes the counters into input.operator_metrics via AddExtraInfo.
 	static void ReportMetrics(TableFunctionGetMetricsInput &input, const SystemCatalogScannerStats &stats);
-	//! Enables filter pushdown on the identity columns only, for filters that cannot throw. get_metrics is per
-	//! function because it needs the function's own GlobalTableFunctionState type to reach the stats.
+	//! get_metrics of a function whose global state is a SystemCatalogScannerGlobalState: it reads only the catalog,
+	//! so it reports 0 bytes scanned, plus the counters of the scan
+	DUCKDB_API static void GetMetrics(TableFunctionGetMetricsInput &input);
+	//! Enables filter pushdown on the identity columns only, for filters that cannot throw.
 	static void RegisterPushdown(TableFunction &function);
 };
 

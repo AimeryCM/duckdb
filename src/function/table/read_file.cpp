@@ -19,6 +19,9 @@ namespace {
 template <class OP>
 struct DirectMultiFileInfo : MultiFileReaderInterface {
 	static unique_ptr<MultiFileReaderInterface> CreateInterface(ClientContext &context);
+	bool ReportsBytesScanned() const override {
+		return true;
+	}
 	unique_ptr<BaseFileReaderOptions> InitializeOptions(ClientContext &context,
 	                                                    optional_ptr<TableFunctionInfo> info) override;
 	bool ParseCopyOption(ClientContext &context, const Identifier &key, const vector<Value> &values,
@@ -186,10 +189,21 @@ struct ReadTextOperation {
 };
 
 template <class OP>
+static void ReadFileGetMetrics(TableFunctionGetMetricsInput &input) {
+	MultiFileFunction<DirectMultiFileInfo<OP>>::MultiFileGetMetrics(input);
+	auto &gstate = input.global_state->Cast<MultiFileGlobalState>();
+	if (gstate.global_state) {
+		auto &read_state = gstate.global_state->Cast<ReadFileGlobalState>();
+		input.operator_metrics.bytes_scanned += read_state.bytes_scanned_unreported.exchange(0);
+	}
+}
+
+template <class OP>
 static TableFunction GetFunction() {
 	// this function reads one file per call, so it takes none of the options that describe combining several
 	MultiFileFunction<DirectMultiFileInfo<OP>> table_function(OP::NAME,
 	                                                          MultiFileReader::MultiFileParameters::ALLOW_EMPTY_ONLY);
+	table_function.get_metrics = ReadFileGetMetrics<OP>;
 	return table_function;
 }
 

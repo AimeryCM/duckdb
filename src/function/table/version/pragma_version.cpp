@@ -46,6 +46,7 @@ void PragmaVersion::RegisterFunction(BuiltinFunctions &set) {
 	TableFunction pragma_version("pragma_version", {}, PragmaVersionFunction);
 	pragma_version.bind = PragmaVersionBind;
 	pragma_version.init_global = PragmaVersionInit;
+	pragma_version.get_metrics = TableFunctionScansNoStorage;
 	set.AddFunction(pragma_version);
 }
 

@@ -2,6 +2,8 @@
 #include "test_helpers.hpp"
 #include "duckdb/main/query_profiler.hpp"
 #include "duckdb/main/settings.hpp"
+#include "duckdb/catalog/catalog.hpp"
+#include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 #include "duckdb/planner/logical_operator.hpp"
 #include "duckdb/main/statement_iterator.hpp"
 
@@ -241,6 +243,51 @@ TEST_CASE("Test the running total of bytes scanned", "[api][parquet]") {
 	REQUIRE_NO_FAIL(con.Query("CREATE SECURE VIEW secure_scan AS SELECT i FROM read_parquet('" + path + "')"));
 	REQUIRE_NO_FAIL(con.Query("SELECT sum(i) FROM secure_scan"));
 	REQUIRE(QueryProfiler::Get(*con.context).GetBytesScanned() == chunk_bytes);
+}
+
+TEST_CASE("Test the running total of bytes scanned by read_blob and read_text", "[api]") {
+	DuckDB db(nullptr);
+	Connection con(db);
+	auto path = TestCreatePath("bytes_scanned_read_blob.csv");
+	REQUIRE_NO_FAIL(con.Query("COPY (SELECT range AS i FROM range(10000)) TO '" + path + "'"));
+	auto sizes = con.Query("SELECT size::UBIGINT FROM read_blob('" + path + "')");
+	REQUIRE_NO_FAIL(*sizes);
+	auto file_size = sizes->Collection().GetValue(0, 0).GetValue<uint64_t>();
+	REQUIRE(file_size > 0);
+	REQUIRE(QueryProfiler::Get(*con.context).GetBytesScanned() == 0);
+
+	REQUIRE_NO_FAIL(con.Query("SELECT octet_length(content) FROM read_blob('" + path + "')"));
+	REQUIRE(QueryProfiler::Get(*con.context).GetBytesScanned() == file_size);
+
+	REQUIRE_NO_FAIL(con.Query("SELECT length(content) FROM read_text('" + path + "')"));
+	REQUIRE(QueryProfiler::Get(*con.context).GetBytesScanned() == file_size);
+
+	// content that is not valid UTF-8 fails read_text after it has been read
+	REQUIRE_FAIL(con.Query("SELECT content FROM read_text('test/sql/table_function/files/four.blob')"));
+	REQUIRE(QueryProfiler::Get(*con.context).GetBytesScanned() == 178);
+}
+
+TEST_CASE("Test which table functions read no storage", "[api][parquet]") {
+	DuckDB db(nullptr);
+	Connection con(db);
+	con.BeginTransaction();
+	auto &range = Catalog::GetEntry<TableFunctionCatalogEntry>(*con.context, QualifiedName("system", "main", "range"));
+	REQUIRE(TableFunctionReadsNoStorage(*range.functions.GetFunctionByArguments(*con.context, {LogicalType::BIGINT})));
+	auto &tables =
+	    Catalog::GetEntry<TableFunctionCatalogEntry>(*con.context, QualifiedName("system", "main", "duckdb_tables"));
+	REQUIRE(TableFunctionReadsNoStorage(*tables.functions.GetFunctionByArguments(*con.context, {})));
+	auto &version =
+	    Catalog::GetEntry<TableFunctionCatalogEntry>(*con.context, QualifiedName("system", "main", "pragma_version"));
+	REQUIRE(TableFunctionReadsNoStorage(*version.functions.GetFunctionByArguments(*con.context, {})));
+	auto &read_parquet =
+	    Catalog::GetEntry<TableFunctionCatalogEntry>(*con.context, QualifiedName("system", "main", "read_parquet"));
+	REQUIRE_FALSE(TableFunctionReadsNoStorage(
+	    *read_parquet.functions.GetFunctionByArguments(*con.context, {LogicalType::VARCHAR})));
+	auto &read_blob =
+	    Catalog::GetEntry<TableFunctionCatalogEntry>(*con.context, QualifiedName("system", "main", "read_blob"));
+	REQUIRE_FALSE(
+	    TableFunctionReadsNoStorage(*read_blob.functions.GetFunctionByArguments(*con.context, {LogicalType::VARCHAR})));
+	con.Rollback();
 }
 
 TEST_CASE("Test the running total of bytes scanned after a failed query", "[api][parquet]") {

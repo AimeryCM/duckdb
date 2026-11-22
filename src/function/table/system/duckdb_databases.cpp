@@ -123,8 +123,10 @@ void DuckDBDatabasesFunction(ClientContext &context, TableFunctionInput &data_p,
 }
 
 void DuckDBDatabasesFun::RegisterFunction(BuiltinFunctions &set) {
-	set.AddFunction(
-	    TableFunction("duckdb_databases", {}, DuckDBDatabasesFunction, DuckDBDatabasesBind, DuckDBDatabasesInit));
+	TableFunction duckdb_databases("duckdb_databases", {}, DuckDBDatabasesFunction, DuckDBDatabasesBind,
+	                               DuckDBDatabasesInit);
+	duckdb_databases.get_metrics = TableFunctionScansNoStorage;
+	set.AddFunction(std::move(duckdb_databases));
 }
 
 } // namespace duckdb

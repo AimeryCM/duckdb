@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "duckdb/common/atomic.hpp"
 #include "duckdb/common/multi_file/multi_file_function.hpp"
 #include "duckdb/common/serializer/memory_stream.hpp"
 #include "utf8proc_wrapper.hpp"
@@ -33,6 +34,8 @@ struct ReadFileGlobalState : public GlobalTableFunctionState {
 	bool requires_file_metadata = false;
 
 	unique_ptr<MemoryStream> stream;
+	//! Stored bytes read from file content and not yet handed to the profiler
+	atomic<idx_t> bytes_scanned_unreported {0};
 };
 
 } // namespace duckdb

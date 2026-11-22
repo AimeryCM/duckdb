@@ -10,14 +10,13 @@
 
 namespace duckdb {
 
-struct DuckDBViewsData : public GlobalTableFunctionState {
+struct DuckDBViewsData : public SystemCatalogScannerGlobalState {
 	DuckDBViewsData() : offset(0) {
 	}
 
 	vector<reference<CatalogEntry>> entries;
 	vector<ColumnIndex> column_ids;
 	idx_t offset;
-	SystemCatalogScannerStats stats;
 };
 
 static unique_ptr<FunctionData> DuckDBViewsBind(ClientContext &context, TableFunctionBindInput &input,
@@ -166,15 +165,11 @@ void DuckDBViewsFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 	}
 }
 
-static void DuckDBViewsGetMetrics(TableFunctionGetMetricsInput &input) {
-	SystemCatalogScanner::ReportMetrics(input, input.global_state->Cast<DuckDBViewsData>().stats);
-}
-
 void DuckDBViewsFun::RegisterFunction(BuiltinFunctions &set) {
 	TableFunction duckdb_views("duckdb_views", {}, DuckDBViewsFunction, DuckDBViewsBind, DuckDBViewsInit);
 	duckdb_views.projection_pushdown = true;
 	SystemCatalogScanner::RegisterPushdown(duckdb_views);
-	duckdb_views.get_metrics = DuckDBViewsGetMetrics;
+	duckdb_views.get_metrics = SystemCatalogScanner::GetMetrics;
 	set.AddFunction(std::move(duckdb_views));
 }
 

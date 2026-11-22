@@ -271,6 +271,7 @@ struct ICUTableRange {
 		range_function.in_out_function = ICUTableRangeFunction<false>;
 		range_function.table_scan_progress = Progress;
 		range_function.cardinality = Cardinality;
+		range_function.get_metrics = TableFunctionScansNoStorage;
 		range_function.return_type = TableFunctionReturnType::SET_RETURNING_FUNCTION;
 		range.AddFunction(range_function);
 
@@ -283,6 +284,7 @@ struct ICUTableRange {
 		generate_series_function.in_out_function = ICUTableRangeFunction<true>;
 		generate_series_function.table_scan_progress = Progress;
 		generate_series_function.cardinality = Cardinality;
+		generate_series_function.get_metrics = TableFunctionScansNoStorage;
 		generate_series_function.return_type = TableFunctionReturnType::SET_RETURNING_FUNCTION;
 		generate_series.AddFunction(generate_series_function);
 

@@ -72,6 +72,7 @@ void RepeatTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	                     RepeatFunction, RepeatBind, RepeatInit);
 	repeat.cardinality = RepeatCardinality;
 	repeat.table_scan_progress = RepeatProgress;
+	repeat.get_metrics = TableFunctionScansNoStorage;
 	set.AddFunction(repeat);
 }
 

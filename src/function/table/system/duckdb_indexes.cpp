@@ -9,13 +9,12 @@
 
 namespace duckdb {
 
-struct DuckDBIndexesData : public GlobalTableFunctionState {
+struct DuckDBIndexesData : public SystemCatalogScannerGlobalState {
 	DuckDBIndexesData() : offset(0) {
 	}
 
 	vector<reference<CatalogEntry>> entries;
 	idx_t offset;
-	SystemCatalogScannerStats stats;
 };
 
 static unique_ptr<FunctionData> DuckDBIndexesBind(ClientContext &context, TableFunctionBindInput &input,
@@ -159,14 +158,10 @@ void DuckDBIndexesFunction(ClientContext &context, TableFunctionInput &data_p, D
 	}
 }
 
-static void DuckDBIndexesGetMetrics(TableFunctionGetMetricsInput &input) {
-	SystemCatalogScanner::ReportMetrics(input, input.global_state->Cast<DuckDBIndexesData>().stats);
-}
-
 void DuckDBIndexesFun::RegisterFunction(BuiltinFunctions &set) {
 	TableFunction indexes("duckdb_indexes", {}, DuckDBIndexesFunction, DuckDBIndexesBind, DuckDBIndexesInit);
 	SystemCatalogScanner::RegisterPushdown(indexes);
-	indexes.get_metrics = DuckDBIndexesGetMetrics;
+	indexes.get_metrics = SystemCatalogScanner::GetMetrics;
 	set.AddFunction(indexes);
 }
 

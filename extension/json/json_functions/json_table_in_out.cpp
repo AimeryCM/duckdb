@@ -497,6 +497,7 @@ TableFunction GetJSONTableInOutFunction(const LogicalType &input_type, const boo
 	                       JSONTableInOutInitLocal);
 	function.in_out_function = JSONTableInOutFunction<TYPE>;
 	function.table_scan_progress = JSONTableInOutProgress;
+	function.get_metrics = TableFunctionScansNoStorage;
 	function.get_virtual_columns = GetJSONTableInOutVirtualColumns;
 	function.projection_pushdown = true;
 	return function;

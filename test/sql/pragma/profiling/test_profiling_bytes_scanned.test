@@ -195,3 +195,112 @@ EXPLAIN ANALYZE (FORMAT json)
 SELECT sum(p.i) FROM '{TEST_DIR}/bytes_scanned_1.parquet' p JOIN native n USING (i)
 ----
 analyzed_plan	<REGEX>:[\s\S]*"bytes_scanned": [1-9][\s\S]*
+
+# a scan that reads no storage counts 0 bytes, so it keeps the total of the scans that do
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_with_range.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned', 'operator.bytes_scanned', 'operator.type'];
+
+statement ok
+SELECT sum(p.i) FROM '{TEST_DIR}/bytes_scanned_1.parquet' p JOIN range(10) r ON p.i = r.range;
+
+statement ok
+PRAGMA disable_profiling;
+
+# the join filter can skip row groups of the Parquet scan, so the total is that of the scan operators
+query II
+SELECT query.total_bytes_scanned = (SELECT sum(bytes) FROM scan_bytes('{TEST_DIR}/bytes_scanned_with_range.json')), query.total_bytes_scanned > 0
+FROM '{TEST_DIR}/bytes_scanned_with_range.json';
+----
+true	true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_with_generate_series.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned', 'operator.bytes_scanned', 'operator.type'];
+
+statement ok
+SELECT sum(i) FROM '{TEST_DIR}/bytes_scanned_1.parquet' WHERE i IN (SELECT * FROM generate_series(1, 100));
+
+statement ok
+PRAGMA disable_profiling;
+
+# the join filter can skip row groups of the Parquet scan, so the total is that of the scan operators
+query II
+SELECT query.total_bytes_scanned = (SELECT sum(bytes) FROM scan_bytes('{TEST_DIR}/bytes_scanned_with_generate_series.json')), query.total_bytes_scanned > 0
+FROM '{TEST_DIR}/bytes_scanned_with_generate_series.json';
+----
+true	true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_with_unnest.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned', 'operator.bytes_scanned', 'operator.type'];
+
+statement ok
+SELECT sum(p.i) FROM '{TEST_DIR}/bytes_scanned_1.parquet' p JOIN (FROM unnest([1, 2, 3]) t(i)) USING (i);
+
+statement ok
+PRAGMA disable_profiling;
+
+# the join filter can skip row groups of the Parquet scan, so the total is that of the scan operators
+query II
+SELECT query.total_bytes_scanned = (SELECT sum(bytes) FROM scan_bytes('{TEST_DIR}/bytes_scanned_with_unnest.json')), query.total_bytes_scanned > 0
+FROM '{TEST_DIR}/bytes_scanned_with_unnest.json';
+----
+true	true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_with_duckdb_tables.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT sum(i), (SELECT count(*) FROM duckdb_tables()) FROM '{TEST_DIR}/bytes_scanned_1.parquet';
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT sum(bytes) FROM chunks WHERE file_name LIKE '%_1.parquet' AND col = 'i')
+FROM '{TEST_DIR}/bytes_scanned_with_duckdb_tables.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_with_glob.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT sum(i), (SELECT count(*) FROM glob('{TEST_DIR}/*.parquet')) FROM '{TEST_DIR}/bytes_scanned_1.parquet';
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT sum(bytes) FROM chunks WHERE file_name LIKE '%_1.parquet' AND col = 'i')
+FROM '{TEST_DIR}/bytes_scanned_with_glob.json';
+----
+true

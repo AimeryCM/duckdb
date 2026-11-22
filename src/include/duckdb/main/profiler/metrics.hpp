@@ -32,7 +32,7 @@ struct MetricQuerySQL {
 struct MetricQueryTotalBytesScanned {
 	using METRIC_TYPE = uint64_t;
 	static constexpr const char *Name = "query.total_bytes_scanned";
-	static constexpr const char *Description = "Cumulative compressed size of the Parquet column chunks scanned by the query, however many bytes were read from storage to scan them. Left out if a scan of the query does not count the bytes it scans";
+	static constexpr const char *Description = "Cumulative stored bytes scanned by the query: compressed column chunks for Parquet, file bytes for CSV and JSON, content bytes read for read_blob and read_text, and 0 for scans that read no storage, however many bytes were read from storage to scan them. Left out if a scan of the query that reads storage does not count the bytes it scans";
 	static constexpr const char *Unit = "bytes";
 	static constexpr const char *TypeStr = "uint64";
 };
@@ -229,7 +229,7 @@ struct MetricStorageWriteToWALLatency {
 struct MetricOperatorBytesScanned {
 	using METRIC_TYPE = uint64_t;
 	static constexpr const char *Name = "operator.bytes_scanned";
-	static constexpr const char *Description = "Compressed size of the Parquet column chunks scanned by the operator";
+	static constexpr const char *Description = "Stored bytes scanned by the operator: compressed column chunks for Parquet, file bytes for CSV and JSON, content bytes read for read_blob and read_text, and 0 for scans that read no storage";
 	static constexpr const char *Unit = "bytes";
 	static constexpr const char *TypeStr = "uint64";
 };

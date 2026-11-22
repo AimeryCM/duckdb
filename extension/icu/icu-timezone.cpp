@@ -770,6 +770,7 @@ bool ICUDateFunc::TryFromNaive(Calendar *calendar, timestamp_t naive, timestamp_
 void RegisterICUTimeZoneFunctions(ExtensionLoader &loader) {
 	//	Table functions
 	TableFunction tz_names("pg_timezone_names", {}, ICUTimeZoneFunction, ICUTimeZoneBind, ICUTimeZoneInit);
+	tz_names.get_metrics = TableFunctionScansNoStorage;
 	loader.RegisterFunction(tz_names);
 
 	//	Scalar functions

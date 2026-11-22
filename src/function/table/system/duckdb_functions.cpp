@@ -23,7 +23,7 @@
 namespace duckdb {
 constexpr const char *AggregateFunctionCatalogEntry::Name;
 
-struct DuckDBFunctionsData : public GlobalTableFunctionState {
+struct DuckDBFunctionsData : public SystemCatalogScannerGlobalState {
 	DuckDBFunctionsData() : offset(0), offset_in_entry(0) {
 	}
 
@@ -32,7 +32,6 @@ struct DuckDBFunctionsData : public GlobalTableFunctionState {
 	idx_t offset_in_entry;
 	//! The offset, published once per chunk (for progress)
 	atomic<idx_t> progress_offset {0};
-	SystemCatalogScannerStats stats;
 };
 
 static unique_ptr<FunctionData> DuckDBFunctionsBind(ClientContext &context, TableFunctionBindInput &input,
@@ -851,14 +850,10 @@ static double DuckDBFunctionsProgress(ClientContext &context, const FunctionData
 	return 100.0 * static_cast<double>(offset) / static_cast<double>(data.entries.size());
 }
 
-static void DuckDBFunctionsGetMetrics(TableFunctionGetMetricsInput &input) {
-	SystemCatalogScanner::ReportMetrics(input, input.global_state->Cast<DuckDBFunctionsData>().stats);
-}
-
 void DuckDBFunctionsFun::RegisterFunction(BuiltinFunctions &set) {
 	TableFunction functions("duckdb_functions", {}, DuckDBFunctionsFunction, DuckDBFunctionsBind, DuckDBFunctionsInit);
 	SystemCatalogScanner::RegisterPushdown(functions);
-	functions.get_metrics = DuckDBFunctionsGetMetrics;
+	functions.get_metrics = SystemCatalogScanner::GetMetrics;
 	functions.table_scan_progress = DuckDBFunctionsProgress;
 	set.AddFunction(functions);
 }

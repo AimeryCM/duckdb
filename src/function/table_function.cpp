@@ -1,6 +1,8 @@
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/function/partition_stats.hpp"
 #include "duckdb/common/string_util.hpp"
+#include "duckdb/function/table/system_catalog_scanner.hpp"
+#include "duckdb/main/profiler/profiling_node.hpp"
 
 #include <algorithm>
 
@@ -227,6 +229,15 @@ bool TableFunctionInput::HandleBlocked(ClientContext &context, AsyncResult &bloc
 	default:
 		throw InternalException("Unexpected AsyncResultsExecutionMode in HandleBlocked");
 	}
+}
+
+void TableFunctionScansNoStorage(TableFunctionGetMetricsInput &input) {
+	input.operator_metrics.bytes_scanned_reported = true;
+}
+
+bool TableFunctionReadsNoStorage(const BaseTableFunction &function) {
+	return function.get_metrics == TableFunctionScansNoStorage ||
+	       function.get_metrics == SystemCatalogScanner::GetMetrics;
 }
 
 } // namespace duckdb

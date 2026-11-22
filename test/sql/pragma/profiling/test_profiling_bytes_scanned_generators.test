@@ -1,0 +1,274 @@
+# name: test/sql/pragma/profiling/test_profiling_bytes_scanned_generators.test
+# description: Test that scans that read no storage report 0 bytes scanned
+# group: [profiling]
+
+require parquet
+
+require json
+
+require icu
+
+statement ok
+COPY (SELECT range AS i, repeat('x', 100) || range AS s FROM range(3 * 2048)) TO '{TEST_DIR}/bytes_scanned_1.parquet' (ROW_GROUP_SIZE 2048);
+
+statement ok
+CREATE TABLE t AS SELECT 1 AS i;
+
+statement ok
+CREATE VIEW v AS SELECT 1 AS i;
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM range(1000)
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM range(TIMESTAMP '2020-01-01', TIMESTAMP '2020-01-02', INTERVAL 1 HOUR)
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM range(TIMESTAMPTZ '2020-01-01', TIMESTAMPTZ '2020-01-02', INTERVAL 1 HOUR)
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM generate_series(1, 10)
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM generate_series(TIMESTAMPTZ '2020-01-01', TIMESTAMPTZ '2020-01-02', INTERVAL 1 HOUR)
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM repeat(1, 5)
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM repeat_row(1, num_rows = 3)
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM unnest([1, 2])
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM glob('{TEST_DIR}/*')
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM json_each('{"a": 1}')
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM json_tree('[1]')
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_tables()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_columns()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_views()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_schemas()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_databases()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_functions()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_indexes()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_sequences()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM duckdb_triggers()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM pg_timezone_names()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM icu_calendar_names()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) FROM pragma_version()
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+# none of them reads storage
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_generators.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned', 'io.total_bytes_read'];
+
+statement ok
+SELECT
+	(SELECT count(*) FROM range(1000)),
+	(SELECT count(*) FROM range(TIMESTAMP '2020-01-01', TIMESTAMP '2020-01-02', INTERVAL 1 HOUR)),
+	(SELECT count(*) FROM range(TIMESTAMPTZ '2020-01-01', TIMESTAMPTZ '2020-01-02', INTERVAL 1 HOUR)),
+	(SELECT count(*) FROM generate_series(1, 10)),
+	(SELECT count(*) FROM generate_series(TIMESTAMPTZ '2020-01-01', TIMESTAMPTZ '2020-01-02', INTERVAL 1 HOUR)),
+	(SELECT count(*) FROM repeat(1, 5)),
+	(SELECT count(*) FROM repeat_row(1, num_rows = 3)),
+	(SELECT count(*) FROM unnest([1, 2])),
+	(SELECT count(*) FROM glob('{TEST_DIR}/*')),
+	(SELECT count(*) FROM json_each('{"a": 1}')),
+	(SELECT count(*) FROM json_tree('[1]')),
+	(SELECT count(*) FROM duckdb_tables()),
+	(SELECT count(*) FROM duckdb_columns()),
+	(SELECT count(*) FROM duckdb_views()),
+	(SELECT count(*) FROM duckdb_schemas()),
+	(SELECT count(*) FROM duckdb_databases()),
+	(SELECT count(*) FROM duckdb_functions()),
+	(SELECT count(*) FROM duckdb_indexes()),
+	(SELECT count(*) FROM duckdb_sequences()),
+	(SELECT count(*) FROM duckdb_triggers()),
+	(SELECT count(*) FROM pg_timezone_names()),
+	(SELECT count(*) FROM icu_calendar_names()),
+	(SELECT count(*) FROM pragma_version());
+
+statement ok
+PRAGMA disable_profiling;
+
+query II
+SELECT query.total_bytes_scanned, io.total_bytes_read FROM '{TEST_DIR}/bytes_scanned_generators.json';
+----
+0	0
+
+# 0 is known up front, so the total is reported even if the pipeline of the scan never runs:
+# the build side of the join fails, so the probe side scan never starts
+statement ok
+SET disabled_optimizers = 'join_order,build_side_probe_side';
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_skipped.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned', 'operator.type', 'operator.intermediate_rows'];
+
+statement error
+SELECT count(*) FROM range(100000) r JOIN (SELECT range AS i FROM range(10) WHERE error('boom' || range) IS NULL) p ON r.range = p.i
+----
+boom
+
+query III
+SELECT any_value(content->'query'->>'total_bytes_scanned'), count(*), sum((value->>'intermediate_rows')::BIGINT)
+FROM read_text('{TEST_DIR}/bytes_scanned_skipped.json'), json_tree(content)
+WHERE value->>'type' = 'TABLE_SCAN'
+----
+0	2	0
+
+statement error
+SELECT count(*) FROM duckdb_columns() c JOIN (SELECT range AS i FROM range(10) WHERE error('boom' || range) IS NULL) p ON c.column_index = p.i
+----
+boom
+
+query III
+SELECT any_value(content->'query'->>'total_bytes_scanned'), count(*), sum((value->>'intermediate_rows')::BIGINT)
+FROM read_text('{TEST_DIR}/bytes_scanned_skipped.json'), json_tree(content)
+WHERE value->>'type' = 'TABLE_SCAN'
+----
+0	2	0
+
+statement ok
+PRAGMA disable_profiling;
+
+statement ok
+RESET disabled_optimizers;
+
+# a table joined with pragma_version reports the table's bytes
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_parquet_alone.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT sum(p.i) FROM '{TEST_DIR}/bytes_scanned_1.parquet' p;
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_parquet_version.json';
+
+statement ok
+SELECT sum(p.i), any_value(v.library_version) FROM '{TEST_DIR}/bytes_scanned_1.parquet' p, pragma_version() v;
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT v.query.total_bytes_scanned = a.query.total_bytes_scanned AND a.query.total_bytes_scanned > 0
+FROM '{TEST_DIR}/bytes_scanned_parquet_version.json' v, '{TEST_DIR}/bytes_scanned_parquet_alone.json' a;
+----
+true
+
+# scans that read files without counting the bytes still leave the total out
+statement ok
+COPY (SELECT range AS i FROM range(10)) TO '{TEST_DIR}/bytes_scanned_sniff.csv';
+
+query II
+EXPLAIN ANALYZE (FORMAT json)
+SELECT sum(i), (SELECT count(*) FROM parquet_metadata('{TEST_DIR}/bytes_scanned_1.parquet')) FROM '{TEST_DIR}/bytes_scanned_1.parquet'
+----
+analyzed_plan	<!REGEX>:[\s\S]*"total_bytes_scanned"[\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json)
+SELECT sum(i), (SELECT count(*) FROM sniff_csv('{TEST_DIR}/bytes_scanned_sniff.csv')) FROM '{TEST_DIR}/bytes_scanned_1.parquet'
+----
+analyzed_plan	<!REGEX>:[\s\S]*"total_bytes_scanned"[\s\S]*
+
+statement ok
+CREATE TABLE native AS SELECT range AS i FROM range(2048);
+
+query II
+EXPLAIN ANALYZE (FORMAT json)
+SELECT sum(p.i) FROM '{TEST_DIR}/bytes_scanned_1.parquet' p JOIN native n USING (i)
+----
+analyzed_plan	<!REGEX>:[\s\S]*"total_bytes_scanned"[\s\S]*

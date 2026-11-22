@@ -92,6 +92,7 @@ void GlobTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	glob_function.table_scan_progress = GlobFunctionProgress;
 	// lists the filesystem at execution time
 	glob_function.stability = FunctionStability::VOLATILE;
+	glob_function.get_metrics = TableFunctionScansNoStorage;
 	set.AddFunction(MultiFileReader::CreateFunctionSet(glob_function));
 }
 

@@ -1125,6 +1125,12 @@ unique_ptr<ProfilingNode> QueryProfiler::CreateTree(const PhysicalOperator &root
 
 	info.name = root_p.GetName();
 	info.operator_type = root_p.type;
+	if (root_p.type == PhysicalOperatorType::TABLE_SCAN &&
+	    TableFunctionReadsNoStorage(root_p.Cast<PhysicalTableScan>().function)) {
+		// 0 bytes scanned is known up front. Every scan of a query that succeeds reaches FinishSource, so this only
+		// matters when the query fails or is cancelled before the scan starts
+		info.bytes_scanned_reported = true;
+	}
 	auto params = root_p.ParamsToString();
 	info.SetExtraInfo(std::move(params));
 
@@ -1242,7 +1248,7 @@ void QueryProfiler::FinalizeMetricsInternal() {
 		metrics->SetMetric<MetricQueryTotalIntermediateSizeBytes>(cumulative_metrics.intermediate_size_bytes);
 		metrics->SetMetric<MetricQueryTotalRowGroupsScanned>(cumulative_metrics.row_groups_scanned);
 		metrics->SetMetric<MetricQueryTotalRowGroupsToScan>(cumulative_metrics.total_row_groups_to_scan);
-		// left out if a scan doesn't count the bytes it scans, as the total would leave that scan out
+		// left out if a scan that reads storage doesn't count the bytes it scans, as the total would leave it out
 		if (!HasScanWithoutBytesScanned(*root)) {
 			metrics->SetMetric<MetricQueryTotalBytesScanned>(cumulative_metrics.bytes_scanned);
 		}

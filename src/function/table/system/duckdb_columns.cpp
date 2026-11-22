@@ -17,14 +17,13 @@
 
 namespace duckdb {
 
-struct DuckDBColumnsData : public GlobalTableFunctionState {
+struct DuckDBColumnsData : public SystemCatalogScannerGlobalState {
 	DuckDBColumnsData() : offset(0), column_offset(0) {
 	}
 
 	vector<reference<CatalogEntry>> entries;
 	atomic<idx_t> offset;
 	idx_t column_offset;
-	SystemCatalogScannerStats stats;
 };
 
 static unique_ptr<FunctionData> DuckDBColumnsBind(ClientContext &context, TableFunctionBindInput &input,
@@ -430,14 +429,10 @@ static double DuckDBColumnsProgress(ClientContext &context, const FunctionData *
 	return 100.0 * static_cast<double>(data.offset) / static_cast<double>(data.entries.size());
 }
 
-static void DuckDBColumnsGetMetrics(TableFunctionGetMetricsInput &input) {
-	SystemCatalogScanner::ReportMetrics(input, input.global_state->Cast<DuckDBColumnsData>().stats);
-}
-
 void DuckDBColumnsFun::RegisterFunction(BuiltinFunctions &set) {
 	TableFunction columns("duckdb_columns", {}, DuckDBColumnsFunction, DuckDBColumnsBind, DuckDBColumnsInit);
 	SystemCatalogScanner::RegisterPushdown(columns);
-	columns.get_metrics = DuckDBColumnsGetMetrics;
+	columns.get_metrics = SystemCatalogScanner::GetMetrics;
 	columns.table_scan_progress = DuckDBColumnsProgress;
 	set.AddFunction(columns);
 }

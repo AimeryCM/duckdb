@@ -4,6 +4,7 @@
 
 #include "duckdb/common/serializer/memory_stream.hpp"
 #include "duckdb/function/table/read_file.hpp"
+#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/storage/external_file_cache/caching_file_system_wrapper.hpp"
 #include "duckdb/storage/caching_mode.hpp"
 
@@ -124,6 +125,8 @@ AsyncResult DirectFileReader::Scan(ClientContext &context, GlobalTableFunctionSt
 					idx_t actually_read = NumericCast<idx_t>(file_handle->Read(
 					    context, state.stream->GetData() + state.stream->GetPosition(), bytes_to_read));
 					state.stream->SetPosition(state.stream->GetPosition() + actually_read);
+					state.bytes_scanned_unreported += actually_read;
+					QueryProfiler::Get(context).TrackBytesScanned(actually_read);
 					AssertMaxFileSize(file.path, state.stream->GetPosition());
 
 					if (read_until_eof) {

@@ -14,13 +14,12 @@
 
 namespace duckdb {
 
-struct DuckDBTablesData : public GlobalTableFunctionState {
+struct DuckDBTablesData : public SystemCatalogScannerGlobalState {
 	DuckDBTablesData() : offset(0) {
 	}
 
 	vector<reference<CatalogEntry>> entries;
 	idx_t offset;
-	SystemCatalogScannerStats stats;
 };
 
 static unique_ptr<FunctionData> DuckDBTablesBind(ClientContext &context, TableFunctionBindInput &input,
@@ -175,14 +174,10 @@ void DuckDBTablesFunction(ClientContext &context, TableFunctionInput &data_p, Da
 	}
 }
 
-static void DuckDBTablesGetMetrics(TableFunctionGetMetricsInput &input) {
-	SystemCatalogScanner::ReportMetrics(input, input.global_state->Cast<DuckDBTablesData>().stats);
-}
-
 void DuckDBTablesFun::RegisterFunction(BuiltinFunctions &set) {
 	auto function = TableFunction("duckdb_tables", {}, DuckDBTablesFunction, DuckDBTablesBind, DuckDBTablesInit);
 	SystemCatalogScanner::RegisterPushdown(function);
-	function.get_metrics = DuckDBTablesGetMetrics;
+	function.get_metrics = SystemCatalogScanner::GetMetrics;
 	set.AddFunction(std::move(function));
 }
 

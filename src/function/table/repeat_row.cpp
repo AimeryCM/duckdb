@@ -79,6 +79,7 @@ void RepeatRowTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	repeat_row.GetSignature().AddKeywordOnly("num_rows", LogicalType::BIGINT);
 	repeat_row.cardinality = RepeatRowCardinality;
 	repeat_row.table_scan_progress = RepeatRowProgress;
+	repeat_row.get_metrics = TableFunctionScansNoStorage;
 	set.AddFunction(repeat_row);
 }
 

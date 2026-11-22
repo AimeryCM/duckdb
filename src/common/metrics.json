@@ -36,7 +36,7 @@
 		},
 		"total_bytes_scanned": {
 			"metric_type": "uint64",
-			"description": "Cumulative compressed size of the Parquet column chunks scanned by the query, however many bytes were read from storage to scan them. Left out if a scan of the query does not count the bytes it scans",
+			"description": "Cumulative stored bytes scanned by the query: compressed column chunks for Parquet, file bytes for CSV and JSON, content bytes read for read_blob and read_text, and 0 for scans that read no storage, however many bytes were read from storage to scan them. Left out if a scan of the query that reads storage does not count the bytes it scans",
 			"unit": "bytes"
 		},
 		"total_intermediate_size_bytes": {
@@ -181,7 +181,7 @@
 		},
 		"bytes_scanned": {
 			"metric_type": "uint64",
-			"description": "Compressed size of the Parquet column chunks scanned by the operator",
+			"description": "Stored bytes scanned by the operator: compressed column chunks for Parquet, file bytes for CSV and JSON, content bytes read for read_blob and read_text, and 0 for scans that read no storage",
 			"unit": "bytes"
 		},
 		"name": {

@@ -510,6 +510,7 @@ void RangeTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	range_function.in_out_function = RangeFunction<false>;
 	range_function.cardinality = RangeCardinality;
 	range_function.parallelism = TableFunctionParallelism::FORCE_SINGLE_THREADED;
+	range_function.get_metrics = TableFunctionScansNoStorage;
 	range_function.return_type = TableFunctionReturnType::SET_RETURNING_FUNCTION;
 
 	// single argument range: (end) - implicit start = 0 and increment = 1
@@ -526,6 +527,7 @@ void RangeTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	range_in_out.in_out_function = RangeDateTimeFunction<false>;
 	range_in_out.cardinality = RangeDateTimeCardinality;
 	range_in_out.parallelism = TableFunctionParallelism::FORCE_SINGLE_THREADED;
+	range_in_out.get_metrics = TableFunctionScansNoStorage;
 	range_in_out.return_type = TableFunctionReturnType::SET_RETURNING_FUNCTION;
 	range.AddFunction(range_in_out);
 	set.AddFunction(range);
@@ -545,6 +547,7 @@ void RangeTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	generate_series_in_out.table_scan_progress = RangeDateTimeProgress;
 	generate_series_in_out.in_out_function = RangeDateTimeFunction<true>;
 	generate_series_in_out.parallelism = TableFunctionParallelism::FORCE_SINGLE_THREADED;
+	generate_series_in_out.get_metrics = TableFunctionScansNoStorage;
 	generate_series_in_out.return_type = TableFunctionReturnType::SET_RETURNING_FUNCTION;
 	generate_series.AddFunction(generate_series_in_out);
 	set.AddFunction(generate_series);

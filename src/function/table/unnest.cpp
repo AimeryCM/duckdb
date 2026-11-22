@@ -93,6 +93,7 @@ void UnnestTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	TableFunction unnest_function("unnest", FunctionSignature().AddPositionalOnly("list", LogicalType::ANY), nullptr,
 	                              UnnestBind, UnnestInit, UnnestLocalInit);
 	unnest_function.in_out_function = UnnestFunction;
+	unnest_function.get_metrics = TableFunctionScansNoStorage;
 	unnest_function.return_type = TableFunctionReturnType::SET_RETURNING_FUNCTION;
 	set.AddFunction(unnest_function);
 }

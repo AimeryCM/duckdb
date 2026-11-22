@@ -708,4 +708,10 @@ public:
 	DUCKDB_API bool operator!=(const BoundTableFunction &rhs) const;
 };
 
+//! get_metrics of a scan that reads no storage (it generates rows, lists files or reads the catalog): 0 bytes scanned
+DUCKDB_API void TableFunctionScansNoStorage(TableFunctionGetMetricsInput &input);
+//! Whether a scan of this function reads no storage, so it scans 0 bytes whether or not its pipeline runs.
+//! Matches get_metrics by pointer: a function that reads no storage but has its own get_metrics must be added here
+DUCKDB_API bool TableFunctionReadsNoStorage(const BaseTableFunction &function);
+
 } // namespace duckdb

@@ -267,6 +267,13 @@ void SystemCatalogScanner::ReportMetrics(TableFunctionGetMetricsInput &input, co
 	                                    to_string(stats.entries_scanned) + "/" + to_string(stats.entries_total));
 }
 
+void SystemCatalogScanner::GetMetrics(TableFunctionGetMetricsInput &input) {
+	input.operator_metrics.bytes_scanned_reported = true;
+	if (input.global_state) {
+		ReportMetrics(input, input.global_state->Cast<SystemCatalogScannerGlobalState>().stats);
+	}
+}
+
 void SystemCatalogScanner::RegisterPushdown(TableFunction &function) {
 	function.filter_pushdown = true;
 	function.pushdown_expression = PushdownExpression;

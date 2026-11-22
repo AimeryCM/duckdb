@@ -10,13 +10,12 @@
 
 namespace duckdb {
 
-struct DuckDBTriggersData : public GlobalTableFunctionState {
+struct DuckDBTriggersData : public SystemCatalogScannerGlobalState {
 	DuckDBTriggersData() : offset(0) {
 	}
 
 	vector<reference<TriggerCatalogEntry>> entries;
 	idx_t offset;
-	SystemCatalogScannerStats stats;
 };
 
 static unique_ptr<FunctionData> DuckDBTriggersBind(ClientContext &context, TableFunctionBindInput &input,
@@ -146,14 +145,10 @@ void DuckDBTriggersFunction(ClientContext &context, TableFunctionInput &data_p, 
 	}
 }
 
-static void DuckDBTriggersGetMetrics(TableFunctionGetMetricsInput &input) {
-	SystemCatalogScanner::ReportMetrics(input, input.global_state->Cast<DuckDBTriggersData>().stats);
-}
-
 void DuckDBTriggersFun::RegisterFunction(BuiltinFunctions &set) {
 	TableFunction triggers("duckdb_triggers", {}, DuckDBTriggersFunction, DuckDBTriggersBind, DuckDBTriggersInit);
 	SystemCatalogScanner::RegisterPushdown(triggers);
-	triggers.get_metrics = DuckDBTriggersGetMetrics;
+	triggers.get_metrics = SystemCatalogScanner::GetMetrics;
 	set.AddFunction(triggers);
 }
 

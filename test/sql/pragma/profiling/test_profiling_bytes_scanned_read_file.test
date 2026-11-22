@@ -1,0 +1,297 @@
+# name: test/sql/pragma/profiling/test_profiling_bytes_scanned_read_file.test
+# description: Test query.total_bytes_scanned and operator.bytes_scanned for read_blob and read_text
+# group: [profiling]
+
+require parquet
+
+require json
+
+statement ok
+COPY (SELECT range AS i FROM range(10000)) TO '{TEST_DIR}/rb.csv';
+
+statement ok
+COPY (SELECT range AS i FROM range(10000)) TO '{TEST_DIR}/rb.csv.gz' (COMPRESSION gzip);
+
+statement ok
+COPY (SELECT range AS i FROM range(2048)) TO '{TEST_DIR}/bytes_scanned_rb.parquet';
+
+statement ok
+CREATE TABLE sizes AS SELECT parse_filename(filename) AS name, size FROM read_blob(['{TEST_DIR}/rb.csv', '{TEST_DIR}/rb.csv.gz']);
+
+query I
+SELECT bool_and(size > 0) AND count(*) = 2 FROM sizes;
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_content.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT octet_length(content) FROM read_blob('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE name = 'rb.csv')
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_content.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_text_content.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT length(content) FROM read_text('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE name = 'rb.csv')
+FROM '{TEST_DIR}/bytes_scanned_read_file_text_content.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_size.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT size FROM read_blob('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = 0
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_size.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_text_size.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT size FROM read_text('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = 0
+FROM '{TEST_DIR}/bytes_scanned_read_file_text_size.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_filename.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT filename, last_modified FROM read_blob('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = 0
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_filename.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_count.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT count(*) FROM read_blob('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = 0
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_count.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_text_count.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT count(*) FROM read_text('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = 0
+FROM '{TEST_DIR}/bytes_scanned_read_file_text_count.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_list.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT sum(octet_length(content)) FROM read_blob(['{TEST_DIR}/rb.csv', '{TEST_DIR}/rb.csv.gz']);
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE name = 'rb.csv') + (SELECT size FROM sizes WHERE name = 'rb.csv.gz')
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_list.json';
+----
+true
+
+# LIMIT stops the scan early: only the content read before it stops counts
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_limit.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT octet_length(content) FROM read_blob(['{TEST_DIR}/rb.csv', '{TEST_DIR}/rb.csv.gz']) LIMIT 1;
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE name = 'rb.csv')
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_limit.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_union.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT octet_length(content) FROM read_blob('{TEST_DIR}/rb.csv') UNION ALL SELECT octet_length(content) FROM read_blob('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = 2 * (SELECT size FROM sizes WHERE name = 'rb.csv')
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_union.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_gzip.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT octet_length(content) FROM read_blob('{TEST_DIR}/rb.csv.gz');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE name = 'rb.csv.gz')
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_gzip.json';
+----
+true
+
+statement ok
+SET enable_profiling = 'json';
+
+statement ok
+SET profiling_output = '{TEST_DIR}/bytes_scanned_read_file_blob_and_parquet.json';
+
+statement ok
+SET tracked_metrics = ['query.total_bytes_scanned'];
+
+statement ok
+SELECT octet_length(content), (SELECT sum(i) FROM '{TEST_DIR}/bytes_scanned_rb.parquet') FROM read_blob('{TEST_DIR}/rb.csv');
+
+statement ok
+PRAGMA disable_profiling;
+
+query I
+SELECT query.total_bytes_scanned = (SELECT size FROM sizes WHERE name = 'rb.csv') + (SELECT sum(total_compressed_size) FROM parquet_metadata('{TEST_DIR}/bytes_scanned_rb.parquet'))
+FROM '{TEST_DIR}/bytes_scanned_read_file_blob_and_parquet.json';
+----
+true
+
+statement ok
+RESET tracked_metrics;
+
+query II
+EXPLAIN ANALYZE (FORMAT json) SELECT octet_length(content) FROM read_blob('{TEST_DIR}/rb.csv')
+----
+analyzed_plan	<REGEX>:[\s\S]*"bytes_scanned": [1-9][\s\S]*
+
+query II
+EXPLAIN ANALYZE (FORMAT json) SELECT size FROM read_blob('{TEST_DIR}/rb.csv')
+----
+analyzed_plan	<REGEX>:[\s\S]*"total_bytes_scanned": 0[\s\S]*
+
+# content that is not valid UTF-8 fails read_text
+statement error
+SELECT content FROM read_text('test/sql/table_function/files/four.blob');
+----
+could not read content of file
